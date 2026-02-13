@@ -1,0 +1,29 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Create zip
+        run: |
+          zip -r auto-quality-setter-${{ github.ref_name }}.zip \
+            manifest.json background.js \
+            popup.html popup.css popup.js \
+            content-twitch.js content-youtube.js \
+            inject-twitch.js inject-youtube.js inject-twitch-pvqc.js \
+            icons/ LICENSE README.md
+
+      - name: Create release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: auto-quality-setter-${{ github.ref_name }}.zip
+          generate_release_notes: true
