@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <div class="container">
+    <header class="header">
+      <div class="header-left">
+        <div class="logo">AQ</div>
+        <span class="title">AUTO QUALITY</span>
+      </div>
+      <label class="chip-toggle" title="Show on-page toast notifications">
+        <input type="checkbox" id="toast-toggle" checked>
+        <span class="chip-label">TOAST</span>
+      </label>
+    </header>
+
+    <section class="platform" data-platform="twitch">
+      <div class="platform-header">
+        <div class="platform-label">
+          <span class="dot twitch-dot"></span>
+          <span class="platform-name">TWITCH</span>
+        </div>
+        <label class="toggle">
+          <input type="checkbox" id="twitch-toggle" checked>
+          <span class="slider"></span>
+        </label>
+      </div>
+      <div class="status-bar">
+        <span class="status-text" id="twitch-status">&mdash;</span>
+      </div>
+      <div class="fields" id="twitch-fields">
+        <div class="chip-grid" id="twitch-quality-grid" data-key="twitch_quality">
+          <button class="quality-chip" data-value="chunked">SRC</button>
+          <button class="quality-chip" data-value="1440p60">1440p</button>
+          <button class="quality-chip selected" data-value="1080p60">1080p</button>
+          <button class="quality-chip" data-value="720p">720p</button>
+          <button class="quality-chip" data-value="480p">480p</button>
+          <button class="quality-chip" data-value="360p">360p</button>
+          <button class="quality-chip" data-value="160p">160p</button>
+          <button class="quality-chip" data-value="lowest">LOW</button>
+        </div>
+        <div class="fallback-row" id="twitch-fallback-row" data-key="twitch_fallback">
+          <span class="fallback-label">If unavailable</span>
+          <div class="fb-group">
+            <button class="fb-btn selected" data-value="higher">&#9650; Higher</button>
+            <button class="fb-btn" data-value="lower">&#9660; Lower</button>
+          </div>
+        </div>
+        <label class="chip-toggle pvqc-toggle" title="Prevent Twitch from lowering quality when tab is in background">
+          <input type="checkbox" id="twitch-pvqc" checked>
+          <span class="chip-label">PREVENT BG CHANGE</span>
+        </label>
+      </div>
+    </section>
+
+    <section class="platform" data-platform="youtube">
+      <div class="platform-header">
+        <div class="platform-label">
+          <span class="dot youtube-dot"></span>
+          <span class="platform-name">YOUTUBE</span>
+        </div>
+        <label class="toggle">
+          <input type="checkbox" id="youtube-toggle" checked>
+          <span class="slider"></span>
+        </label>
+      </div>
+      <div class="status-bar">
+        <span class="status-text" id="youtube-status">&mdash;</span>
+      </div>
+      <div class="fields" id="youtube-fields">
+        <div class="chip-grid" id="youtube-quality-grid" data-key="youtube_quality">
+          <button class="quality-chip" data-value="highest">MAX</button>
+          <button class="quality-chip" data-value="hd2160">4K</button>
+          <button class="quality-chip" data-value="hd1440">1440p</button>
+          <button class="quality-chip selected" data-value="hd1080">1080p</button>
+          <button class="quality-chip" data-value="hd720">720p</button>
+          <button class="quality-chip" data-value="large">480p</button>
+          <button class="quality-chip" data-value="medium">360p</button>
+          <button class="quality-chip" data-value="small">240p</button>
+          <button class="quality-chip" data-value="tiny">144p</button>
+        </div>
+        <div class="fallback-row" id="youtube-fallback-row" data-key="youtube_fallback">
+          <span class="fallback-label">If unavailable</span>
+          <div class="fb-group">
+            <button class="fb-btn selected" data-value="higher">&#9650; Higher</button>
+            <button class="fb-btn" data-value="lower">&#9660; Lower</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <div class="saved-toast" id="toast">Saved</div>
+  </div>
+  <script src="popup.js"></script>
+</body>
+</html>
