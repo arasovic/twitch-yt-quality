@@ -146,19 +146,18 @@ twitch-yt-quality/
 ## Architecture
 
 ```
-┌─────────────┐  postMessage   ┌─────────────────┐  chrome.runtime   ┌────────────────┐
-│ inject-*.js │ ──────────────→│ content-*.js     │ ────────────────→│ background.js  │
-│ (page ctx)  │  quality report│ (isolated world) │  qualityUpdate   │ (svc worker)   │
-│             │←──────────────│                  │                  │                │
-│ setQuality  │  setQuality msg│ toast, state     │                  │ badge, shortcut│
-└─────────────┘                └─────────────────┘                  └────────────────┘
-                                       ↑                                    ↑
-                                       │ sendMessage                        │
-                                       │ (getStatus)                        │
-                                ┌──────┴───────┐                           │
-                                │   popup.js   │───────────────────────────┘
-                                │  (settings)  │   storage.onChanged
-                                └──────────────┘
+┌────────────────┐               ┌─────────────────────┐               ┌───────────────────┐
+│  inject-*.js   │──postMessage─→│  content-*.js       │──runtime.msg─→│  background.js    │
+│  (page ctx)    │←──────────────│  (isolated world)   │               │  (svc worker)     │
+│                │               │                     │               │                   │
+│  player API    │               │  toast, messaging   │               │  badge, shortcut  │
+└────────────────┘               └─────────────────────┘               └───────────────────┘
+                                           ↑                                     ↑
+                                           │                                     │
+                                    ┌──────┴──────┐                              │
+                                    │  popup.js   │── storage.onChanged ─────────┘
+                                    │  (settings) │
+                                    └─────────────┘
 ```
 
 ## Why This Exists
