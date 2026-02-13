@@ -27,12 +27,13 @@ Works with Twitch's React-based player and YouTube's built-in player API. Handle
 
 This extension is not published on the Chrome Web Store. To install manually:
 
-1. Download or clone this repository
-2. Open `chrome://extensions` in Chrome
-3. Enable **Developer mode** (top right toggle)
-4. Click **Load unpacked**
-5. Select the `twitch-yt-quality` folder
-6. The extension icon appears in your toolbar — click it to configure
+1. Download the latest zip from [Releases](https://github.com/arasovic/twitch-yt-quality/releases/latest)
+2. Extract the zip to a folder
+3. Open `chrome://extensions` in Chrome
+4. Enable **Developer mode** (top right toggle)
+5. Click **Load unpacked**
+6. Select the extracted folder
+7. The extension icon appears in your toolbar — click it to configure
 
 ## Usage
 
