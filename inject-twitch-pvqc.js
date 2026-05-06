@@ -9,6 +9,7 @@
   const MAX_BLOCKS_PER_SEC = 3;
   const BG_PAUSE_WINDOW_MS = 1000;
   const STUCK_CHECK_MS = 2500;
+  const STUCK_CONFIRM_MS = 500;
   const RELOAD_DELAY_MS = 200;
   const RELOAD_COOLDOWN_MS = 5000;
   const bgPausedSet = new Set();
@@ -184,7 +185,11 @@
 
   function checkStuck() {
     if (!active) return;
-    if (isAnyVideoStuck()) triggerPlayerReload();
+    if (!isAnyVideoStuck()) return;
+    setTimeout(() => {
+      if (!active) return;
+      if (isAnyVideoStuck()) triggerPlayerReload();
+    }, STUCK_CONFIRM_MS);
   }
 
   function resumeBgPaused() {
