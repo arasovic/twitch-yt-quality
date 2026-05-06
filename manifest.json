@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Auto Quality Setter",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "description": "Automatically set video quality on Twitch and YouTube",
   "permissions": ["storage", "activeTab", "tabs"],
   "action": {
@@ -29,8 +29,14 @@
   "content_scripts": [
     {
       "matches": ["*://*.twitch.tv/*"],
+      "js": ["inject-twitch-pvqc.js"],
+      "run_at": "document_start",
+      "world": "MAIN"
+    },
+    {
+      "matches": ["*://*.twitch.tv/*"],
       "js": ["content-twitch.js"],
-      "run_at": "document_idle"
+      "run_at": "document_start"
     },
     {
       "matches": ["*://*.youtube.com/*"],

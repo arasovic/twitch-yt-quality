@@ -1,5 +1,4 @@
 let scriptReady = false;
-let pvqcInjected = false;
 let lastAppliedQuality = null;
 
 function injectScript(callback) {
@@ -17,22 +16,7 @@ function injectScript(callback) {
   (document.head || document.documentElement).appendChild(s);
 }
 
-function injectPvqc() {
-  if (pvqcInjected) return;
-  const s = document.createElement("script");
-  s.src = chrome.runtime.getURL("inject-twitch-pvqc.js");
-  s.dataset.aqPvqc = "1";
-  s.onload = () => {
-    pvqcInjected = true;
-  };
-  (document.head || document.documentElement).appendChild(s);
-}
-
 function togglePvqc(enabled) {
-  if (enabled && !pvqcInjected) {
-    injectPvqc();
-    return;
-  }
   window.postMessage({ type: "aq_pvqc_toggle", enabled }, "*");
 }
 
@@ -105,7 +89,9 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
 injectScript(() => sendQuality());
 
 chrome.storage.local.get(["twitch_prevent_bg_change"], (data) => {
-  if (data.twitch_prevent_bg_change !== false) injectPvqc();
+  if (data.twitch_prevent_bg_change === false) {
+    window.postMessage({ type: "aq_pvqc_toggle", enabled: false }, "*");
+  }
 });
 
 let lastUrl = location.href;
@@ -119,7 +105,7 @@ const observer = new MutationObserver(() => {
     }
   }, 200);
 });
-observer.observe(document.body, { childList: true, subtree: true });
+observer.observe(document.body || document.documentElement, { childList: true, subtree: true });
 
 chrome.storage.onChanged.addListener((changes) => {
   if (
