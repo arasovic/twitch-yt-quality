@@ -2,7 +2,7 @@
 
 Automatically set video quality on Twitch and YouTube. Pick your preferred resolution once — it applies on every stream, every video, every channel switch. No more manually changing quality settings.
 
-Works with Twitch's React-based player and YouTube's built-in player API. Handles SPA navigation, fallback quality, background tab quality drops, and more.
+Works with Twitch's React-based player and YouTube's built-in player API. Handles SPA navigation, fallback quality, background tab interruptions, and more.
 
 ![Chrome](https://img.shields.io/badge/Chrome-Extension-4285F4?logo=googlechrome&logoColor=white)
 ![Manifest V3](https://img.shields.io/badge/Manifest-V3-34A853)
@@ -13,7 +13,7 @@ Works with Twitch's React-based player and YouTube's built-in player API. Handle
 - **Auto quality on Twitch** — Source, 1440p, 1080p, 720p, 480p, 360p, 160p, or Lowest
 - **Auto quality on YouTube** — 4K, 1440p, 1080p, 720p, 480p, 360p, 240p, or 144p
 - **Smart fallback** — If your preferred quality isn't available, automatically goes higher or lower based on your preference
-- **Prevent background quality drop** — Stops Twitch from lowering stream quality when the tab is in the background
+- **Prevent background interruption** — Auto-resumes muted Twitch streams that pause when switching macOS Spaces or browser windows
 - **Badge indicator** — Shows the currently applied quality on the extension icon
 - **On-page toast notification** — Brief overlay when quality is applied, toggleable
 - **Keyboard shortcut** — `Alt+Q` to toggle the extension on the current platform
@@ -51,9 +51,9 @@ Press `Alt+Q` on any Twitch or YouTube tab to quickly toggle the extension for t
 
 A small notification appears in the top-right corner of the page when quality is applied. Toggle this on/off with the **TOAST** chip in the popup header.
 
-### Prevent Background Quality Drop (Twitch)
+### Prevent Background Interruption (Twitch)
 
-Twitch automatically lowers stream quality when a tab loses focus to save bandwidth. Enable **PREVENT BG CHANGE** in the Twitch section to override this behavior. The extension overrides the Page Visibility API so Twitch always thinks the tab is active. Can be toggled on/off dynamically without reloading the page.
+When a Twitch stream is muted and the browser window loses focus (e.g., switching macOS Spaces), Chromium pauses the video to save resources. Enable **PREVENT BG CHANGE** in the Twitch section to suppress these pauses via `HTMLMediaElement.pause` override and Amazon IVS Player instance wrapping. If a pause still slips through, the extension auto-resumes the video on window focus return, so no manual click is needed. Can be toggled on/off dynamically without reloading the page.
 
 ## Supported Quality Options
 
@@ -104,6 +104,10 @@ The extension uses a multi-layer messaging architecture:
 
 Traverses React's internal fiber tree to find the player instance, then calls `player.setQuality()`. URL changes are detected via MutationObserver to handle Twitch's SPA routing.
 
+### Twitch Background Interruption (PVQC)
+
+Chromium browsers pause muted background media. PVQC overrides `HTMLMediaElement.prototype.pause` to block pause calls within 500ms of a `visibilitychange` event (capped at 3 blocks/sec to avoid retry loops), and wraps the Amazon IVS Player instance via React fiber traversal to intercept `pause`/`stop`/`emit('idle')` earlier in the call chain. Pauses that still slip through are tracked in a Set and auto-resumed via `play()` on window focus return, with retries at 0ms/500ms/1500ms in case the Twitch worker re-pauses.
+
 ### YouTube
 
 Uses the `#movie_player` DOM element which exposes `setPlaybackQualityRange()` and `setPlaybackQuality()`. Navigation is detected via the `yt-navigate-finish` event.
@@ -135,7 +139,7 @@ twitch-yt-quality/
 ├── content-youtube.js         # YouTube content script — messaging, toast
 ├── inject-twitch.js           # Twitch page script — React fiber player access
 ├── inject-youtube.js          # YouTube page script — player API access
-├── inject-twitch-pvqc.js      # Page Visibility API override for Twitch
+├── inject-twitch-pvqc.js      # Pause override + auto-resume for Twitch background
 ├── LICENSE                    # MIT License
 └── icons/
     ├── icon16.png
@@ -172,8 +176,8 @@ Not yet. The extension uses Chrome Manifest V3 APIs. Firefox support may be adde
 ### Does this work on YouTube Shorts?
 No. YouTube Shorts are intentionally excluded since they use a different player.
 
-### Why does Twitch lower quality when I switch tabs?
-Twitch uses the Page Visibility API to detect when a tab is in the background and automatically reduces stream quality to save bandwidth. The **PREVENT BG CHANGE** feature overrides this.
+### Why does Twitch pause when I switch macOS Spaces while muted?
+Chromium browsers throttle muted background media by triggering a pause on the underlying video element. With audio playing, browsers leave the stream alone — but muted streams get paused, requiring a manual click to resume. The **PREVENT BG CHANGE** feature blocks pause calls within a 500ms visibility-change window and tracks any pauses that slip through, auto-resuming the video on window focus return.
 
 ### Can I set different qualities for different Twitch channels?
 Not currently. The quality setting applies globally to all Twitch streams.
