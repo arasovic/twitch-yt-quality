@@ -8,7 +8,12 @@
   const SUPPRESS_WINDOW_MS = 500;
   const MAX_BLOCKS_PER_SEC = 3;
   const BG_PAUSE_WINDOW_MS = 1000;
+  const STUCK_CHECK_MS = 2500;
+  const RELOAD_DELAY_MS = 200;
+  const RELOAD_COOLDOWN_MS = 5000;
   const bgPausedSet = new Set();
+  let lastWrappedPlayer = null;
+  let lastReloadAt = 0;
 
   function markVisChange() {
     lastVisChange = performance.now();
@@ -61,31 +66,7 @@
   function wrapPlayer(player) {
     if (!player || wrappedPlayers.has(player)) return;
     wrappedPlayers.add(player);
-
-    const stateRegex = /(idle|pause|stop|ended|background)/i;
-
-    if (typeof player.emit === "function") {
-      const origEmit = player.emit.bind(player);
-      player.emit = function (event, ...args) {
-        if (typeof event === "string" && stateRegex.test(event) && shouldSuppress()) {
-          recordBlock();
-          return;
-        }
-        return origEmit(event, ...args);
-      };
-    }
-
-    if (typeof player.onStateChanged === "function") {
-      const origState = player.onStateChanged.bind(player);
-      player.onStateChanged = function (state, ...args) {
-        const s = state && (state.type || state.name || state);
-        if (typeof s === "string" && stateRegex.test(s) && shouldSuppress()) {
-          recordBlock();
-          return;
-        }
-        return origState(state, ...args);
-      };
-    }
+    lastWrappedPlayer = player;
 
     ["pause", "stop", "onIdle"].forEach((m) => {
       if (typeof player[m] === "function") {
@@ -177,12 +158,43 @@
     });
   }
 
+  function isAnyVideoStuck() {
+    const videos = document.querySelectorAll("video");
+    for (const v of videos) {
+      if (!v.isConnected || v.ended) continue;
+      if (v.readyState < 3) return true;
+    }
+    return false;
+  }
+
+  function triggerPlayerReload() {
+    if (performance.now() - lastReloadAt < RELOAD_COOLDOWN_MS) return;
+    const p = lastWrappedPlayer;
+    if (!p) return;
+    lastReloadAt = performance.now();
+    try {
+      if (typeof p.pause === "function") p.pause();
+    } catch (e) {}
+    setTimeout(() => {
+      try {
+        if (typeof p.play === "function") p.play();
+      } catch (e) {}
+    }, RELOAD_DELAY_MS);
+  }
+
+  function checkStuck() {
+    if (!active) return;
+    if (isAnyVideoStuck()) triggerPlayerReload();
+  }
+
   function resumeBgPaused() {
     if (!active) return;
-    if (bgPausedSet.size === 0) return;
-    tryResumeOnce();
-    setTimeout(tryResumeOnce, 500);
-    setTimeout(tryResumeOnce, 1500);
+    if (bgPausedSet.size > 0) {
+      tryResumeOnce();
+      setTimeout(tryResumeOnce, 500);
+      setTimeout(tryResumeOnce, 1500);
+    }
+    setTimeout(checkStuck, STUCK_CHECK_MS);
   }
 
   document.addEventListener(
