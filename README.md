@@ -53,7 +53,7 @@ A small notification appears in the top-right corner of the page when quality is
 
 ### Prevent Background Interruption (Twitch)
 
-When a Twitch stream is muted and the browser window loses focus (e.g., switching macOS Spaces), Chromium pauses the video to save resources. On longer backgrounds (multi-minute), the HLS source pipeline goes dormant — even if the video element is told to play again, segment fetching never restarts, leaving the player stuck on a loading spinner. Enable **PREVENT BG CHANGE** in the Twitch section to handle both cases: pauses are suppressed within a 500ms visibility-change window, any pauses that slip through are auto-resumed on focus return, and if the source is still stuck 2.5 seconds after returning, the extension reloads the player (the same `pause` → `play` sequence you'd run manually). Can be toggled on/off dynamically without reloading the page.
+When a Twitch stream is muted and the browser window loses focus (e.g., switching macOS Spaces), Chromium pauses the video to save resources. On longer backgrounds (multi-minute), the HLS source pipeline goes dormant — even if the video element is told to play again, segment fetching never restarts, leaving the player stuck on a loading spinner. Twitch's player UI can also leave the loading-spinner overlay visible after focus return even when the video is actually playing. Enable **PREVENT BG CHANGE** in the Twitch section to handle all of these: pauses are suppressed within a 500ms visibility-change window, any pauses that slip through are auto-resumed on focus return, and a 30-second watchdog after focus return looks for stuck playback (`currentTime` not advancing, no frames painting, or a Twitch loading-spinner overlay persisting ≥ 5 seconds) and reloads the player when it sees one. The reload escalates: a soft `pause` → `play` sequence first, and if playback still hasn't resumed 1.5 seconds later, a harder `stop` (or `load`) → `play` cycle that fully resets the source pipeline. Can be toggled on/off dynamically without reloading the page.
 
 ## Supported Quality Options
 
@@ -106,11 +106,18 @@ Traverses React's internal fiber tree to find the player instance, then calls `p
 
 ### Twitch Background Interruption (PVQC)
 
-Chromium browsers pause muted background media; on multi-minute backgrounds, the HLS source pipeline goes dormant and `play()` alone does not restart segment fetching. PVQC handles this in three layers:
+Chromium browsers pause muted background media; on multi-minute backgrounds, the HLS source pipeline goes dormant and `play()` alone does not restart segment fetching. Beyond that, Twitch's player UI sometimes leaves a loading-spinner overlay visible even when the underlying `<video>` is healthy. PVQC handles these in three layers, with five detection signals feeding the recovery layer:
 
-1. **Pause suppression** — overrides `HTMLMediaElement.prototype.pause` to block pause calls within 500ms of a `visibilitychange` event (capped at 3 blocks/sec to avoid retry loops). The Amazon IVS Player's `pause`/`stop`/`onIdle` methods are also wrapped via React fiber traversal as defensive depth.
-2. **Auto-resume** — pauses that slip through are tracked in a Set and force-played via `play()` on window focus return, with retries at 0ms/500ms/1500ms in case the Twitch worker re-pauses.
-3. **Stuck-source recovery** — 2.5 seconds after focus return, if any video still has `readyState < 3`, the source is considered dormant and the player is reloaded via `player.pause()` → 200ms → `player.play()` (the same sequence Twitch's UI runs when a user clicks pause/play). A 5-second cooldown prevents reload spam on rapid space switches.
+1. **Pause suppression** — overrides `HTMLMediaElement.prototype.pause` to block pause calls within 500ms of a `visibilitychange`/`blur`/`freeze` event (capped at 3 blocks/sec to avoid retry loops). The Amazon IVS Player's `pause`/`stop`/`onIdle` methods are also wrapped via React fiber traversal as defensive depth.
+2. **Auto-resume** — on `visibilitychange-visible` or window `focus`, every connected `<video>` that is muted, paused, and has `readyState ≥ 2` gets force-played, with retries at 0ms / 500ms / 1500ms in case the Twitch worker re-pauses.
+3. **Stuck-source / stuck-UI recovery** — five orthogonal detectors run on focus return; any one can trigger the same reload chain:
+   - **Focus baseline** — at focus, `currentTime` is sampled per video; 2.5s later, a video is "stuck" if `readyState < 3` or `currentTime` hasn't advanced past the baseline within a 1.5s window.
+   - **`<video>.waiting` event** — if a video fires `waiting` and `currentTime` doesn't move within 2s, treat as stuck.
+   - **`currentTime` watchdog** — 30s, polled at 1Hz; if a non-paused video with `readyState ≥ 3` keeps the same `currentTime` for ≥ 1.5s, treat as stuck.
+   - **`requestVideoFrameCallback` watchdog** — 30s; if no frame is delivered to the compositor within 2.5s while the video is unpaused, treat as stuck (catches decoder pipeline halts).
+   - **DOM spinner watchdog** — 30s, polled at 1Hz; if a known Twitch loading-spinner element is visibly mounted for ≥ 5s, treat as stuck (catches the case where the video is fine but the UI overlay never clears).
+
+   Recovery escalates: first a soft reload via `player.pause()` → 200ms → `player.play()` (the same sequence Twitch's UI runs when a user clicks pause/play), then 1.5 seconds later, if still stuck, a hard reload via `player.stop()` (or `player.load()` as fallback) → 200ms → `player.play()` to fully reset the source pipeline. Before each reload, a fresh `findPlayer()` is run to guard against stale player references after React remounts. A 5-second cooldown prevents reload spam on rapid space switches.
 
 ### YouTube
 
@@ -181,7 +188,7 @@ Not yet. The extension uses Chrome Manifest V3 APIs. Firefox support may be adde
 No. YouTube Shorts are intentionally excluded since they use a different player.
 
 ### Why does Twitch pause when I switch macOS Spaces while muted?
-Chromium browsers throttle muted background media by triggering a pause on the underlying video element. With audio playing, browsers leave the stream alone — but muted streams get paused, requiring a manual click to resume. After long backgrounds (multi-minute), Twitch's HLS source pipeline also goes dormant, so even calling `play()` won't restart playback. The **PREVENT BG CHANGE** feature blocks pause calls within a 500ms visibility-change window, auto-resumes on focus return, and if the source is still stuck 2.5 seconds later, reloads the player automatically (the same pause→play sequence you'd otherwise click manually).
+Chromium browsers throttle muted background media by triggering a pause on the underlying video element. With audio playing, browsers leave the stream alone — but muted streams get paused, requiring a manual click to resume. After long backgrounds (multi-minute), Twitch's HLS source pipeline also goes dormant, so even calling `play()` won't restart playback. The **PREVENT BG CHANGE** feature blocks pause calls within a 500ms visibility-change window, auto-resumes on focus return, and if the source is still stuck 2.5 seconds later (either `readyState < 3` or `currentTime` not advancing), reloads the player automatically — first with a soft `pause`→`play`, then a harder `stop`/`load`→`play` if playback still hasn't resumed 1.5 seconds after the soft attempt.
 
 ### Can I set different qualities for different Twitch channels?
 Not currently. The quality setting applies globally to all Twitch streams.
