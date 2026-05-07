@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Auto Quality Setter",
-  "version": "1.1.2",
+  "version": "1.2.0",
   "description": "Automatically set video quality on Twitch and YouTube",
   "permissions": ["storage", "activeTab", "tabs"],
   "action": {
