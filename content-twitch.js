@@ -20,6 +20,11 @@ function togglePvqc(enabled) {
   window.postMessage({ type: "aq_pvqc_toggle", enabled }, "*");
 }
 
+function scheduleQualityReapply() {
+  setTimeout(sendQuality, 400);
+  setTimeout(sendQuality, 1600);
+}
+
 function sendQuality() {
   chrome.storage.local.get(
     ["twitch_enabled", "twitch_quality", "twitch_fallback"],
@@ -71,6 +76,9 @@ window.addEventListener("message", (e) => {
       });
     } catch (err) {}
     showToast(e.data.quality);
+  }
+  if (e.data && e.data.type === "aq_twitchPvqcRecovery") {
+    scheduleQualityReapply();
   }
 });
 

@@ -385,6 +385,10 @@
     } catch (e) {}
   }
 
+  function notifyRecovery() {
+    window.postMessage({ type: "aq_twitchPvqcRecovery" }, "*");
+  }
+
   function triggerPlayerReload() {
     if (performance.now() - lastReloadAt < RELOAD_COOLDOWN_MS) return;
     const fresh = findPlayer();
@@ -393,14 +397,20 @@
     if (!p) return;
     lastReloadAt = performance.now();
     safePlayerCall(p, "pause");
-    setTimeout(() => safePlayerCall(p, "play"), RELOAD_DELAY_MS);
+    setTimeout(() => {
+      safePlayerCall(p, "play");
+      notifyRecovery();
+    }, RELOAD_DELAY_MS);
     setTimeout(() => {
       if (!isAnyVideoStuck()) return;
       const cur = findPlayer() || lastWrappedPlayer;
       if (!cur) return;
       if (typeof cur.stop === "function") safePlayerCall(cur, "stop");
       else safePlayerCall(cur, "load");
-      setTimeout(() => safePlayerCall(cur, "play"), RELOAD_DELAY_MS);
+      setTimeout(() => {
+        safePlayerCall(cur, "play");
+        notifyRecovery();
+      }, RELOAD_DELAY_MS);
     }, HARD_RELOAD_AFTER_MS);
   }
 
